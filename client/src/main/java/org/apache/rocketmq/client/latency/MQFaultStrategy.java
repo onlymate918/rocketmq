@@ -56,6 +56,7 @@ public class MQFaultStrategy {
     }
 
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
+        //容忍发消息长时间延迟，默认值是false。
         if (this.sendLatencyFaultEnable) {
             try {
                 int index = tpInfo.getSendWhichQueue().incrementAndGet();
@@ -86,7 +87,7 @@ public class MQFaultStrategy {
 
             return tpInfo.selectOneMessageQueue();
         }
-
+        //如果进到这里lastBrokerName不为空，那么表示上一次向这个Broker发送消息是失败的，这时就尽量不要再往这个Broker发送消息了。
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 

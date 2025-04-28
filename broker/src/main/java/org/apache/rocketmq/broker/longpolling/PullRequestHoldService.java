@@ -135,7 +135,7 @@ public class PullRequestHoldService extends ServiceThread {
                         if (match && properties != null) {
                             match = request.getMessageFilter().isMatchedByCommitLog(null, properties);
                         }
-
+                        //长轮询：匹配到了对当前消息感兴趣的已缓存的消费者请求。
                         if (match) {
                             try {
                                 this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(),

@@ -347,7 +347,6 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor {
                         break;
                     case ResponseCode.PULL_NOT_FOUND:
                         if (!brokerAllowSuspend) {
-
                             context.setCommercialRcvStats(BrokerStatsManager.StatsType.RCV_EPOLLS);
                             context.setCommercialRcvTimes(1);
                             context.setCommercialOwner(owner);
@@ -406,9 +405,15 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor {
                     }
                     break;
                 case ResponseCode.PULL_NOT_FOUND:
-
+                    //K1 消息长轮询1：消费者消费时，没有消息就会被缓存起来。
+                    //brokerAllowSuspend 客户端初次请求消息时是指定的true。重新唤醒时指定为false
+                    //hasSuspendFlag默认都是true
                     if (brokerAllowSuspend && hasSuspendFlag) {
+                        //默认最长跟消费者有关。
+                        // DefaultMQPushConsumerImpl.BROKER_SUSPEND_MAX_TIME_MILLIS 默认阻塞15秒
+                        // DefaultLitePullConsumer.brokerSuspendMaxTimeMillis 默认20秒
                         long pollingTimeMills = suspendTimeoutMillisLong;
+                        //没打开长轮询，也默认等待1秒
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                             pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
                         }
@@ -416,8 +421,10 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor {
                         String topic = requestHeader.getTopic();
                         long offset = requestHeader.getQueueOffset();
                         int queueId = requestHeader.getQueueId();
+                        //没有拉取到消息，就再创建一个拉取请求
                         PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
                             this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
+                        //将请求放入ManyRequestPull请求队列
                         this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
                         response = null;
                         break;
@@ -545,13 +552,14 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor {
             log.warn(String.format("generateOffsetMovedEvent Exception, %s", event.toString()), e);
         }
     }
-
+    //长轮询 匹配到消息后执行。
     public void executeRequestWhenWakeup(final Channel channel,
         final RemotingCommand request) throws RemotingCommandException {
         Runnable run = new Runnable() {
             @Override
             public void run() {
                 try {
+                    //K2 消息长轮询：找到消息匹配的已缓存的请求后，就直接将消息结果推动给等待中的客户端。将brokerAllowSuspend设置成了false
                     final RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false);
 
                     if (response != null) {

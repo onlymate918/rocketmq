@@ -275,6 +275,7 @@ public class DefaultMessageStore implements MessageStore {
             log.info("[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}",
                 maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());
             this.reputMessageService.setReputFromOffset(maxPhysicalPosInLogicQueue);
+            //启动消息分发服务
             this.reputMessageService.start();
 
             /**
@@ -293,6 +294,7 @@ public class DefaultMessageStore implements MessageStore {
 
         if (!messageStoreConfig.isEnableDLegerCommitLog()) {
             this.haService.start();
+            //启动延迟消息服务
             this.handleScheduleMessageService(messageStoreConfig.getBrokerRole());
         }
 
@@ -443,7 +445,7 @@ public class DefaultMessageStore implements MessageStore {
         }
         return false;
     }
-
+    //K1 文件写入的入口方法
     @Override
     public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
         PutMessageStatus checkStoreStatus = this.checkStoreStatus();
@@ -463,6 +465,7 @@ public class DefaultMessageStore implements MessageStore {
 
 
         long beginTime = this.getSystemClock().now();
+        //K2 CommitLog消息写入
         CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);
 
         putResultFuture.thenAccept(result -> {
@@ -1314,7 +1317,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private void addScheduleTask() {
-
+        //K1 过期文件删除
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -1517,6 +1520,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public void doDispatch(DispatchRequest req) {
+        //dispatchList中包含CommitLogDispatcherBuildConsumeQueue和CommitLogDispatcherBuildIndex，分别用来构建ConsumeQueue文件和IndexFile文件。
         for (CommitLogDispatcher dispatcher : this.dispatcherList) {
             dispatcher.dispatch(req);
         }
@@ -1614,7 +1618,7 @@ public class DefaultMessageStore implements MessageStore {
             }
         }, 6, TimeUnit.SECONDS);
     }
-
+    //K1 ConsumeQueue文件分发的构建器
     class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
 
         @Override
@@ -1631,7 +1635,7 @@ public class DefaultMessageStore implements MessageStore {
             }
         }
     }
-
+    //K1 IndexFile文件分发的构建器
     class CommitLogDispatcherBuildIndex implements CommitLogDispatcher {
 
         @Override
@@ -1660,7 +1664,7 @@ public class DefaultMessageStore implements MessageStore {
             this.manualDeleteFileSeveralTimes = MAX_MANUAL_DELETE_FILE_TIMES;
             DefaultMessageStore.log.info("executeDeleteFilesManually was invoked");
         }
-
+        //K2 定期删除CommitLog文件的地方
         public void run() {
             try {
                 this.deleteExpiredFiles();
@@ -1676,7 +1680,7 @@ public class DefaultMessageStore implements MessageStore {
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
             int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
             int destroyMapedFileIntervalForcibly = DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
-
+            //K2 Broker触发文件删除的三个条件
             boolean timeup = this.isTimeToDelete();
             boolean spacefull = this.isSpaceToDelete();
             boolean manualDelete = this.manualDeleteFileSeveralTimes > 0;
@@ -2031,11 +2035,14 @@ public class DefaultMessageStore implements MessageStore {
 
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
+                                    //K1 CommitLog日志分发到ConsumeQueue和IndexFile
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
-
+                                    //K1 长轮询： 如果有消息到了主节点，并且开启了长轮询。
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                             && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()
                                             && DefaultMessageStore.this.messageArrivingListener != null) {
+                                        //messageArrivingListener实例是NotifyMessageArrivingListener
+                                        //通知被hold住的消费者拉取消息的请求
                                         DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),
                                             dispatchRequest.getQueueId(), dispatchRequest.getConsumeQueueOffset() + 1,
                                             dispatchRequest.getTagsCode(), dispatchRequest.getStoreTimestamp(),

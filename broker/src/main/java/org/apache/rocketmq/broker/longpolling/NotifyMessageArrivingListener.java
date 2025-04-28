@@ -27,7 +27,7 @@ public class NotifyMessageArrivingListener implements MessageArrivingListener {
     public NotifyMessageArrivingListener(final PullRequestHoldService pullRequestHoldService) {
         this.pullRequestHoldService = pullRequestHoldService;
     }
-
+    //长轮询：生产者发送消息后的监听事件
     @Override
     public void arriving(String topic, int queueId, long logicOffset, long tagsCode,
         long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {

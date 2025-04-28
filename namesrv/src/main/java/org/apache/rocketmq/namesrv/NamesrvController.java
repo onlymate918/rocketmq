@@ -72,22 +72,22 @@ public class NamesrvController {
         );
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
-
+    //K2 NameServerController初始化过程
     public boolean initialize() {
 
         this.kvConfigManager.load();
-
+        //创建NettyServer网络处理对象
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
-
+        //Netty服务器的工作线程池
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
-
+        //K1 NameServer注册Processor到RemotingServer中。
         this.registerProcessor();
 
         this.scheduledExecutorService.scheduleAtFixedRate(NamesrvController.this.routeInfoManager::scanNotActiveBroker, 5, 10, TimeUnit.SECONDS);
 
         this.scheduledExecutorService.scheduleAtFixedRate(NamesrvController.this.kvConfigManager::printAllPeriodically, 1, 10, TimeUnit.MINUTES);
-
+        //TLS是一个安全传输层协议，相关参数只能用JVM指令注入
         if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
             // Register a listener to reload SslContext
             try {
@@ -131,16 +131,17 @@ public class NamesrvController {
 
     private void registerProcessor() {
         if (namesrvConfig.isClusterTest()) {
-
+            //测试集群
             this.remotingServer.registerDefaultProcessor(new ClusterTestRequestProcessor(this, namesrvConfig.getProductEnvName()),
                 this.remotingExecutor);
         } else {
-
+            //业务比较简单，所有功能整合到一个Processor里。
             this.remotingServer.registerDefaultProcessor(new DefaultRequestProcessor(this), this.remotingExecutor);
         }
     }
-
+    //启动服务
     public void start() throws Exception {
+        //启动了一个Netty服务端
         this.remotingServer.start();
 
         if (this.fileWatchService != null) {

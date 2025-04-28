@@ -40,7 +40,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.srvutil.ShutdownHookThread;
 import org.slf4j.LoggerFactory;
-
+//NameServer的核心启动类
 public class NamesrvStartup {
 
     private static InternalLogger log;
@@ -52,7 +52,7 @@ public class NamesrvStartup {
     }
 
     public static NamesrvController main0(String[] args) {
-
+        //K1 NameServer的核心组件，类似于Web应用中的Controller，负责接收处理网络请求。
         try {
             NamesrvController controller = createNamesrvController(args);
             start(controller);
@@ -78,10 +78,11 @@ public class NamesrvStartup {
             System.exit(-1);
             return null;
         }
-
+        //K2 NameServer的两个核心配置
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
-        nettyServerConfig.setListenPort(9876);
+        nettyServerConfig.setListenPort(9876);//默认直接指定9876端口
+        //-c 和 -p 解析。 怎么调整默认端口？
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -106,7 +107,7 @@ public class NamesrvStartup {
         }
 
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
-
+        //ROCKETMQ_HOME环境变量监测
         if (null == namesrvConfig.getRocketmqHome()) {
             System.out.printf("Please set the %s variable in your environment to match the location of the RocketMQ installation%n", MixAll.ROCKETMQ_HOME_ENV);
             System.exit(-2);
@@ -136,18 +137,18 @@ public class NamesrvStartup {
         if (null == controller) {
             throw new IllegalArgumentException("NamesrvController is null");
         }
-
+        //初始化，主要是几个定时任务
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();
             System.exit(-3);
         }
-
+        //服务关闭钩子，在服务正常关闭时执行。
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, (Callable<Void>) () -> {
             controller.shutdown();
             return null;
         }));
-
+        //启动服务
         controller.start();
 
         return controller;

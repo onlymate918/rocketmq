@@ -42,7 +42,6 @@ public class Producer {
          * Instantiate with a producer group name.
          */
         DefaultMQProducer producer = new DefaultMQProducer(PRODUCER_GROUP);
-
         /*
          * Specify name server addresses.
          *

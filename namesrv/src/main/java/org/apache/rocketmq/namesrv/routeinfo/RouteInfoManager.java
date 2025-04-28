@@ -134,7 +134,7 @@ public class RouteInfoManager {
 
         return topicList;
     }
-
+    //注册Broker
     public RegisterBrokerResult registerBroker(
             final String clusterName,
             final String brokerAddr,
@@ -146,14 +146,14 @@ public class RouteInfoManager {
             final Channel channel) {
         RegisterBrokerResult result = new RegisterBrokerResult();
         try {
-            try {
+            try {//加锁，同一时间只能一个线程写
                 this.lock.writeLock().lockInterruptibly();
 
                 Set<String> brokerNames = this.clusterAddrTable.computeIfAbsent(clusterName, k -> new HashSet<>());
                 brokerNames.add(brokerName);
 
                 boolean registerFirst = false;
-
+                //brokerAddrTable:核心路由信息表
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
                 if (null == brokerData) {
                     registerFirst = true;
@@ -193,7 +193,7 @@ public class RouteInfoManager {
                         }
                     }
                 }
-
+                //主要封装与客户端的channel
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr,
                         new BrokerLiveInfo(
                                 System.currentTimeMillis(),

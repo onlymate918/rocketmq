@@ -59,7 +59,7 @@ public class BrokerStartup {
 
     public static BrokerController start(BrokerController controller) {
         try {
-
+            //K1 BrokerController启动
             controller.start();
 
             String tip = "The broker[" + controller.getBrokerConfig().getBrokerName() + ", "
@@ -79,7 +79,7 @@ public class BrokerStartup {
 
         return null;
     }
-
+    //K1 创建Broker核心配置
     public static void shutdown(final BrokerController controller) {
         if (null != controller) {
             controller.shutdown();
@@ -97,16 +97,16 @@ public class BrokerStartup {
             if (null == commandLine) {
                 System.exit(-1);
             }
-
+            //K2 Broker的核心配置
             final BrokerConfig brokerConfig = new BrokerConfig();
             final NettyServerConfig nettyServerConfig = new NettyServerConfig();
             final NettyClientConfig nettyClientConfig = new NettyClientConfig();
-
             nettyClientConfig.setUseTLS(Boolean.parseBoolean(System.getProperty(TLS_ENABLE,
                 String.valueOf(TlsSystemConfig.tlsMode == TlsMode.ENFORCING))));
-            nettyServerConfig.setListenPort(10911);
+            nettyServerConfig.setListenPort(10911);//默认10911端口
+            //K2 存储相关的配置信息
             final MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
-
+            //SLAVE使用的消息常驻内存比例比Master低10%
             if (BrokerRole.SLAVE == messageStoreConfig.getBrokerRole()) {
                 int ratio = messageStoreConfig.getAccessMessageInMemoryMaxRatio() - 10;
                 messageStoreConfig.setAccessMessageInMemoryMaxRatio(ratio);
@@ -152,7 +152,7 @@ public class BrokerStartup {
                     System.exit(-3);
                 }
             }
-
+            //通过brokerId判断主从
             switch (messageStoreConfig.getBrokerRole()) {
                 case ASYNC_MASTER:
                 case SYNC_MASTER:
@@ -168,7 +168,7 @@ public class BrokerStartup {
                 default:
                     break;
             }
-
+            //Dledger集群的所有Broker节点ID都是-1
             if (messageStoreConfig.isEnableDLegerCommitLog()) {
                 brokerConfig.setBrokerId(-1);
             }
@@ -208,7 +208,7 @@ public class BrokerStartup {
             MixAll.printObjectProperties(log, nettyServerConfig);
             MixAll.printObjectProperties(log, nettyClientConfig);
             MixAll.printObjectProperties(log, messageStoreConfig);
-
+            //K1 创建核心的BrokerController 在broker.conf里可以配置哪些属性？
             final BrokerController controller = new BrokerController(
                 brokerConfig,
                 nettyServerConfig,
@@ -216,13 +216,13 @@ public class BrokerStartup {
                 messageStoreConfig);
             // remember all configs to prevent discard
             controller.getConfiguration().registerConfig(properties);
-
+            //K1 初始化BrokerController。注意从中理解Broekr的组件结构
             boolean initResult = controller.initialize();
             if (!initResult) {
                 controller.shutdown();
                 System.exit(-3);
             }
-
+            //优雅关闭，释放资源
             Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
                 private volatile boolean hasShutdown = false;
                 private AtomicInteger shutdownTimes = new AtomicInteger(0);
